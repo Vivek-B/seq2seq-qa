@@ -22,14 +22,14 @@ with g.as_default():
 
 	# ENCODER         
 	encoder_out, encoder_state = tf.nn.dynamic_rnn(cell = tf.nn.rnn_cell.BasicLSTMCell(128), 
-													inputs = tf.contrib.layers.embed_sequence(X, 10000, 128),
-													sequence_length = X_seq_len,
-													dtype = tf.float32)
+							inputs = tf.contrib.layers.embed_sequence(X, 10000, 128),
+							sequence_length = X_seq_len,
+							dtype = tf.float32)
 
 	context_out, context_state = tf.nn.dynamic_rnn(cell = tf.nn.rnn_cell.BasicLSTMCell(128, reuse=True), 
-													inputs = tf.contrib.layers.embed_sequence(X_context, 10000, 128),
-													sequence_length = X_seq_len_context,
-													dtype = tf.float32)
+							inputs = tf.contrib.layers.embed_sequence(X_context, 10000, 128),
+							sequence_length = X_seq_len_context,
+							dtype = tf.float32)
 
 
 	# DECODER COMPONENTS
@@ -40,28 +40,28 @@ with g.as_default():
 
 	# ATTENTION (TRAINING)
 	attention_mechanism = tf.contrib.seq2seq.LuongAttention(num_units = 128, 
-															memory = encoder_out,
-															memory_sequence_length = X_seq_len)
+								memory = encoder_out,
+								memory_sequence_length = X_seq_len)
 
 	decoder_cell = tf.contrib.seq2seq.AttentionWrapper(cell = tf.nn.rnn_cell.BasicLSTMCell(128),
-														attention_mechanism = attention_mechanism,
-														attention_layer_size = 128)
+							attention_mechanism = attention_mechanism,
+							attention_layer_size = 128)
 
 
 	# DECODER (TRAINING)
 	training_helper = tf.contrib.seq2seq.TrainingHelper(inputs = tf.nn.embedding_lookup(decoder_embedding, Y),
-														sequence_length = Y_seq_len,
-														time_major = False)
+							sequence_length = Y_seq_len,
+							time_major = False)
 
 	state = tf.contrib.rnn.LSTMStateTuple(context_state[1], encoder_state[1])
 	training_decoder = tf.contrib.seq2seq.BasicDecoder(cell = decoder_cell,
-														helper = training_helper,
-														initial_state = decoder_cell.zero_state(BATCH_SIZE,tf.float32).clone(cell_state=state),
-														output_layer = projection_layer)
+							helper = training_helper,
+							initial_state = decoder_cell.zero_state(BATCH_SIZE,tf.float32).clone(cell_state=state),
+							output_layer = projection_layer)
 
 	training_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder = training_decoder,
-																	  impute_finished = True,
-																	  maximum_iterations = tf.reduce_max(Y_seq_len))
+									  impute_finished = True,
+									  maximum_iterations = tf.reduce_max(Y_seq_len))
 	training_logits = training_decoder_output.rnn_output
 
 
@@ -73,27 +73,27 @@ with g.as_default():
 
 	# ATTENTION (PREDICTING)
 	attention_mechanism = tf.contrib.seq2seq.LuongAttention(num_units = 128, 
-															memory = encoder_out,
-															memory_sequence_length = X_seq_len)
+								memory = encoder_out,
+								memory_sequence_length = X_seq_len)
 
 	decoder_cell = tf.contrib.seq2seq.AttentionWrapper(cell = tf.nn.rnn_cell.BasicLSTMCell(128),
-														attention_mechanism = attention_mechanism,
-														attention_layer_size = 128)
+							attention_mechanism = attention_mechanism,
+							attention_layer_size = 128)
 
 
 	# DECODER (PREDICTING)
 	predicting_decoder = tf.contrib.seq2seq.BeamSearchDecoder(cell = decoder_cell,
-															  embedding = decoder_embedding,
-															  start_tokens = tf.tile(tf.constant([5], dtype=tf.int32), [BATCH_SIZE]),
-															  end_token = 6,
-															  initial_state = decoder_cell.zero_state(BATCH_SIZE * BEAM_WIDTH,tf.float32).clone(cell_state=encoder_state),
-															  beam_width = BEAM_WIDTH,
-															  output_layer = projection_layer,
-															  length_penalty_weight = 0.0)
+								  embedding = decoder_embedding,
+								  start_tokens = tf.tile(tf.constant([5], dtype=tf.int32), [BATCH_SIZE]),
+								  end_token = 6,
+								  initial_state = decoder_cell.zero_state(BATCH_SIZE * BEAM_WIDTH,tf.float32).clone(cell_state=encoder_state),
+								  beam_width = BEAM_WIDTH,
+								  output_layer = projection_layer,
+								  length_penalty_weight = 0.0)
 
 	predicting_decoder_output, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder = predicting_decoder,
-																		impute_finished = False,
-																		maximum_iterations = 2 * tf.reduce_max(Y_seq_len))
+									impute_finished = False,
+									maximum_iterations = 2 * tf.reduce_max(Y_seq_len))
 	predicting_logits = predicting_decoder_output.predicted_ids[:, :, 0]
 
 	print('successful')
